@@ -96,7 +96,7 @@ class read_schedule():
                     # Cria um ID único para a tarefa agendada
                     task_id = f"{program['id']}_{time_part}_{day_part}"
                     # Verifica se o horário e dia atuais correspondem à entrada de agendamento
-                    if time_part == current_time and day_part == current_day and task_id not in self.scheduled_tasks:
+                    if time_part == current_time and day_part.upper() == current_day.upper() and task_id not in self.scheduled_tasks:
                         # Agenda a execução do programa
                         task = self.loop.create_task(
                             # Chama o método tasks_ondemmand do runner para executar o programa

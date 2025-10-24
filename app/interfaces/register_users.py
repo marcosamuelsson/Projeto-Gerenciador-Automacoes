@@ -71,7 +71,10 @@ class Inter_register_users(ctk.CTkToplevel):
 
         # Define o título da Janela
         self.title("Register User")
-
+        
+        # ícone da janela
+        self.wm_iconbitmap(self.manipulador.icon_terminator)
+        
         # Faz com que o APP seja grande o suficiente para preencher toda a tela
         self.resizable(False, False)
         
@@ -220,7 +223,7 @@ class Inter_register_users(ctk.CTkToplevel):
 
         if hasattr(self, "user_data") and self.user_data:
             self.userdb.update(self.user_data["id"], **user_data)
-            content = f"User {user_name} Updated.\nHour Updated: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nUser Code: {user_sesa}.\nUser E-mail: {user_email}.\n"
+            content = f"-------------------------------------------------------------------------------------------------------------------\nUser {user_name} Updated.\nHour Updated: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nUser Code: {user_sesa}.\nUser E-mail: {user_email}.\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.users_txt, content)
 
             CTkMessagebox(
@@ -243,7 +246,7 @@ class Inter_register_users(ctk.CTkToplevel):
                 return
             self.userdb.register(**user_data)
 
-            content = f"User {user_name} Registered.\nHour Registered: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nUser Code: {user_sesa}.\nUser E-mail: {user_email}.\n"
+            content = f"-------------------------------------------------------------------------------------------------------------------\nUser {user_name} Registered.\nHour Registered: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nUser Code: {user_sesa}.\nUser E-mail: {user_email}.\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.users_txt, content)
 
             CTkMessagebox(title="Success", message="Data registered successfully!", icon="info", button_color="#089c4c", justify="center")

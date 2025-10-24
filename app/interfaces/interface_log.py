@@ -16,6 +16,8 @@ import customtkinter as ctk
 import tkinter
 from CTkMessagebox import CTkMessagebox
 import os
+from app.adm_files.manipulator import manipulador
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 # Configuração do modo de aparência e tema padrão do customtkinter
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")  # ou qualquer outro tema
@@ -36,13 +38,13 @@ class TextViewerApp(ctk.CTkToplevel):
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     def __init__(self, program_path, program_name):
         super().__init__()
-
         # Armazena os parâmetros recebidos
         self.program_path = program_path
         self.program_name = program_name
         self.bg_color = "#000811"  # Cor de fundo padrão
         self.configure(bg=self.bg_color)  # Aplica cor de fundo
-
+        # Acresenta o ícone ao app
+        self.wm_iconbitmap(default=manipulador().icon_terminator)
         # Configura título e dimensões da janela
         self.title(f"Allocation Log - {self.program_name}")
         width = 600
@@ -56,11 +58,10 @@ class TextViewerApp(ctk.CTkToplevel):
         # Cria o frame container principal com cor de fundo
         self.container_frame = ctk.CTkFrame(self, fg_color=self.bg_color, bg_color=self.bg_color)
         self.container_frame.pack(fill=tkinter.BOTH, expand=True)
-
+        
         # Cria o frame do texto com padding interno
         self.text_frame = ctk.CTkFrame(self.container_frame, fg_color=self.bg_color, bg_color=self.bg_color)
         self.text_frame.pack(fill=tkinter.BOTH, expand=True, padx=10, pady=10)
-        
         # Cria o widget de texto para exibir o conteúdo do log
         self.textbox = tkinter.Text(
             self.text_frame,

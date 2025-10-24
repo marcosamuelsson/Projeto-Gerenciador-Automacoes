@@ -3,7 +3,7 @@ Código para criar uma janela principal utilizando customtkinter, que permite ao
 como visualizar programas executados, agendar execuções, gerenciar programas e usuários, e ajustar configurações.
 Code by: Marco Antonio Samuelsson
 Data: 29/08/2025
-Versão: 1.0
+Versão: 1.2.2
 Qualquer modificação ou cópia deste código deve ser autorizada pelo autor!
 """
 
@@ -18,11 +18,16 @@ Qualquer modificação ou cópia deste código deve ser autorizada pelo autor!
 #       datetime: para manipulação de datas e horas
 #       os: para manipulação de arquivos e pastas
 #       tkinter.ttk: para widgets avançados do tkinter
+#       Image: para manipulação de imagens 
+#       openpyxl: para manipulação de dados de planilhas excel
+#       filedialog: para exibição de diálogos de seleção de arquivos
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Importação dos módulos criados para o APP:
 #       manipulador: para manipulação de arquivos e pastas
+#       Create_Excel: para criação do template de schedule com os dados de horário do banco
 #       PasswordDialog: para exibir uma janela de diálogo para confirmação de senha
 #       Hash: para hash e verificação de senhas
+#       Window_UserSelector: para selecionar um usário que irá manipular o schedule
 #       Window_Selector: para selecionar diferentes janelas de interface
 #       Inter_Register_APP: para registrar novos aplicativos
 #       Inter_Register_PREP: para registrar novos preparativos
@@ -33,16 +38,19 @@ Qualquer modificação ou cópia deste código deve ser autorizada pelo autor!
 #       Runner: para executar tarefas assíncronas
 #       read_schedule: para ler o cronograma de execuções
 #       FolderCleaner: para limpar pastas temporárias
+#       PixelArtIcon: para criar o ícone da janela
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 import ctypes
 import tkinter.ttk
 import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 from app.adm_files.manipulator import manipulador, Path, os
+from app.adm_files.create_excel_template import Create_Excel, openpyxl
 from app.security.password_dialog import PasswordDialog
 from app.security.password_hash import Hash
+from app.interfaces.select_user import Window_UserSelector
 from app.interfaces.director import Window_Selector
-from app.interfaces.register_apps import Inter_Register_APP, datetime
+from app.interfaces.register_apps import Inter_Register_APP, datetime, filedialog
 from app.interfaces.register_prep import Inter_Register_PREP
 from app.interfaces.interface_settings import Inter_Settings
 from app.interfaces.register_users import Inter_register_users
@@ -54,6 +62,8 @@ from app.database.settingsDB import SettingsDB
 from app.executer.runner import Runner, asyncio
 from app.executer.read_schedule import read_schedule
 from app.executer.cleaner import FolderCleaner
+from app.images.create_icon import PixelArtIcon, Image
+
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Configuração do modo de aparência e tema padrão do customtkinter
 #   Define o modo de aparência para "dark" (escuro) e o tema de cores para "green" (verde)
@@ -72,6 +82,8 @@ ctk.set_default_color_theme("green")
 #       executed: exibe a interface de programas executados
 #       update_executed: atualiza a lista de programas executados
 #       open_schedule: exibe a interface de agendamento de execuções
+#       create_export: método acionado para criação de um template de schedule aceito pela importação
+#       import_schedule: método acionado para importação do template gerado e modificado pelo usuário
 #       open_programs: exibe a interface de gerenciamento de programas
 #       users: exibe a interface de gerenciamento de usuários
 #       _settings: exibe a interface de configurações
@@ -95,7 +107,7 @@ class App(ctk.CTk):
 #       Nenhum
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     def __init__(self):
-        # Criação de pastas para armezenar os aruquivos
+        # Criação de pastas para armezenar os aruivos 
         self.manipulador = manipulador()
 
         # Criação das pastas necessárias. Se já existirem, não faz nada.
@@ -108,13 +120,17 @@ class App(ctk.CTk):
         self.manipulador.create_folders(self.manipulador.database_folder)
         self.manipulador.create_folders(self.manipulador.master_folder)
         self.manipulador.create_folders(self.manipulador.logs_folder)
+        self.manipulador.create_folders(self.manipulador.image_folder)
+        
+        # Criação do ícone do app
+        self.pixel_art = PixelArtIcon().create_icon()
 
         # Define a data e hora atual para registros
         self.data_atual_txt = datetime.now().strftime("%d/%m/%Y - %H:%M:%S")
 
         # Registro de arquivos de logs. 
         # Log de programas que já foram executados
-        self.executed_content = f"Start application - {self.data_atual_txt}\n"
+        self.executed_content = f"Start Program - {self.data_atual_txt}\n"
         if not os.path.exists(self.manipulador.executed_txt):
             self.manipulador.create_txt(self.manipulador.executed_txt, self.executed_content)
         else:
@@ -134,17 +150,20 @@ class App(ctk.CTk):
 
         # Configuração do banco de dados
         self.db_programs = GenericDBOperations(ProgramsDB, "sqlite:///C:/Terminator/Database/executerDB.db")
-        self.db_users = GenericDBOperations(UsersDB, "sqlite:///C://Terminator/Database/executerDB.db")
+        self.db_users = GenericDBOperations(UsersDB, "sqlite:///C:/Terminator/Database/executerDB.db")
         self.db_settings = GenericDBOperations(SettingsDB, "sqlite:///C:/Terminator/Database/executerDB.db")
        
         # Chama o construtor da classe ctk.CTk
         super().__init__()
 
         # Define o título do APP
-        self.title("Terminator")
+        self.title("Terminator 1.2.2")
 
         # Define o tamanho inicial da janela e o tamanho mínimo
         self.minsize(1000, 600)
+
+        # Acresenta o ícone ao app
+        self.wm_iconbitmap(default=self.manipulador.icon_terminator)
 
         # Centralizar a janela
         self.update_idletasks()  # Garante que a geometria esteja atualizada
@@ -163,11 +182,21 @@ class App(ctk.CTk):
         self.left_side_panel.grid_columnconfigure(0, weight=1)
         self.left_side_panel.grid_rowconfigure((0, 1, 2, 3), weight=0)
         self.left_side_panel.grid_rowconfigure((6, 7), weight=1)
+        self.left_side_panel.configure(fg_color="#000000")
+        
+        # Logo do app na tela iDnicial
+        # Carrega a imagem do ícone
+        self.icon_image = Image.open(self.manipulador.icon_terminator)
+        self.ctk_image = ctk.CTkImage(light_image=self.icon_image, dark_image=self.icon_image, size=(200, 200))
+
+        # Cria o label com a imagem e posiciona abaixo do título
+        self.icon_label = ctk.CTkLabel(self.left_side_panel, image=self.ctk_image, text="")
+        self.icon_label.grid(row=0, column=0, padx=20, pady=(20, 10))
         
         # self.left_side_panel WIDGET
         # Aqui é definido o logo que ficará no APP
-        self.logo_label = ctk.CTkLabel(self.left_side_panel, text="Terminator", font=ctk.CTkFont(size=20, weight="bold"))
-        self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
+        self.logo_label = ctk.CTkLabel(self.left_side_panel, text="Terminator 1.2.2", font=ctk.CTkFont(size=20, weight="bold"))
+        self.logo_label.grid(row=1, column=0, padx=20, pady=(20, 10))
 
         # Botões do left_side_panel
         # Dicionário para armazenar os botões e facilitar a seleção
@@ -175,22 +204,22 @@ class App(ctk.CTk):
 
         # Botão Executed -> chama o método self.executed para mostrar os programas que já foram executados
         self.bt_executed = ctk.CTkButton(self.left_side_panel, text="Executed", command=self.executed, fg_color="#089c4c", width=200, height=50, font=("Arial", 17))
-        self.bt_executed.grid(row=1, column=0, padx=20, pady=10)
+        self.bt_executed.grid(row=2, column=0, padx=20, pady=10)
         self.buttons["executed"] = self.bt_executed
 
         # Botão Schedule -> chama o método self.open_schedule para mostrar os programas agendados
         self.schedule_bt = ctk.CTkButton(self.left_side_panel, text="Schedule", command=self.open_schedule, fg_color="#089c4c", width=200, height=50, font=("Arial", 17))
-        self.schedule_bt.grid(row=2, column=0, padx=20, pady=10)
+        self.schedule_bt.grid(row=3, column=0, padx=20, pady=10)
         self.buttons["schedule"] = self.schedule_bt
         
         # Botão Programs -> chama o método self.open_programs para mostrar os programas cadastrados
         self.bt_programs = ctk.CTkButton(self.left_side_panel, text="Programs", command=self.open_programs, fg_color="#089c4c", width=200, height=50, font=("Arial", 17))
-        self.bt_programs.grid(row=3, column=0, padx=20, pady=10)
+        self.bt_programs.grid(row=4, column=0, padx=20, pady=10)
         self.buttons["programs"] = self.bt_programs
 
         # Botão Users -> chama o método self.users para mostrar os usuários cadastrados
         self.user_bt = ctk.CTkButton(self.left_side_panel, text="Users", command=self.users, fg_color="#089c4c", width=200, height=50, font=("Arial", 17))
-        self.user_bt.grid(row=4, column=0, padx=20, pady=10)
+        self.user_bt.grid(row=5, column=0, padx=20, pady=10)
         self.buttons["users"] = self.user_bt
 
         # Botão Settings -> chama o método self._settings para mostrar as configurações do sistema
@@ -198,11 +227,11 @@ class App(ctk.CTk):
         self.settings_bt.grid(row=15, column=0, padx=20, pady=10)
 
         # right_side_panel -> tem os conteúdos que mudam conforme o botão clicado no left_side_panel
-        self.right_side_panel = ctk.CTkFrame(self.main_container, corner_radius=10, fg_color="#000811")
+        self.right_side_panel = ctk.CTkFrame(self.main_container, corner_radius=10, fg_color="#000000")
         self.right_side_panel.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=True, padx=5, pady=5)
         
         # Conteúdo inicial da right_side_panel
-        self.right_dashboard = ctk.CTkFrame(self.main_container, corner_radius=10, fg_color="#000811")
+        self.right_dashboard = ctk.CTkFrame(self.main_container, corner_radius=10, fg_color="#000000")
         self.right_dashboard.pack(in_=self.right_side_panel, side=tkinter.TOP, fill=tkinter.BOTH, expand=True, padx=0, pady=0)
         
         # Dicionário para armazenar os filtros aplicados nas tabelas
@@ -223,6 +252,9 @@ class App(ctk.CTk):
         # Limpeza de pastas temporárias
         self.folder_cleaner = FolderCleaner(self.manipulador)
         self.folder_cleaner.start()
+
+        # Instancia o usuário de seleção para o import de schedule
+        self.selected_user = None
 
         # Função para verificar se é a primeira vez que o programa está sendo executado.
         # Se for, cria o usuário admin padrão a partir do banco de dados registrado pelo usuário
@@ -273,7 +305,7 @@ class App(ctk.CTk):
         # Limpa o conteúdo atual da right_dashboard
         self.clear_frame(self.right_dashboard)
         # Cria o frame para os botões acima da tabela
-        self.button_frame = ctk.CTkFrame(self.right_dashboard, fg_color="#000811")
+        self.button_frame = ctk.CTkFrame(self.right_dashboard, fg_color="#000000")
         self.button_frame.pack(pady=10)
         # Botão Stop -> chama o método self.stop_execution para parar a execução de programas agendados
         self.stop_run = ctk.CTkButton(self.button_frame, text="Stop", command=self.stop_execution, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
@@ -302,8 +334,8 @@ class App(ctk.CTk):
         # Configura o estilo da tabela
         self.style = tkinter.ttk.Style()
         self.style.theme_use("clam")
-        self.style.configure("Treeview", background="#000811", foreground="white", fieldbackground="#000811", font=("Arial", 12, "normal"))
-        self.style.configure("Treeview.Heading", background="#000811", foreground="white", fieldbackground="#000811", font=("Arial", 12, "bold"))
+        self.style.configure("Treeview", background="#000000", foreground="white", fieldbackground="#000000", font=("Arial", 12, "normal"))
+        self.style.configure("Treeview.Heading", background="#000000", foreground="white", fieldbackground="#000000", font=("Arial", 12, "bold"))
         self.style.map('Treeview', background=[('selected', '#089c4c')])
         self.style.map('Treeview.Heading', background=[('selected', '#089c4c')])
 
@@ -354,25 +386,25 @@ class App(ctk.CTk):
         self.clear_frame(self.right_dashboard)
         
         # Cria o frame para os botões da rigth_dashboard
-        self.button_frame = ctk.CTkFrame(self.right_dashboard, fg_color="#000811")
+        self.button_frame = ctk.CTkFrame(self.right_dashboard, fg_color="#000000")
         self.button_frame.pack(pady=10)
 
         # Botão para exportar o schedule
-        self.export_schedule = ctk.CTkButton(self.button_frame, text="Export Schedule", command="", fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
-        self.export_schedule.pack(side=tkinter.LEFT, padx=10)
+        self.export_schedule_btn = ctk.CTkButton(self.button_frame, text="Export Schedule", command=self.create_export, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
+        self.export_schedule_btn.pack(side=tkinter.LEFT, padx=10)
 
         # Botão para importar o scheduel
-        self.import_schedule = ctk.CTkButton(self.button_frame, text="Import Schedule", command="", fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
-        self.import_schedule.pack(side=tkinter.LEFT, padx=10)
+        self.import_schedule_btn = ctk.CTkButton(self.button_frame, text="Import Schedule", command=self.import_schedule, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
+        self.import_schedule_btn.pack(side=tkinter.LEFT, padx=10)
         
         # Cria a tabela para exibir os programas agendados
         # Colunas da tabela:
-        #   Program Path: caminho do programa agendado
-        #   Program Name: nome do programa agendado
-        #   Program Type: tipo do programa agendado
+        #   Program Path: caminho do aplicativo agendado
+        #   Program Name: nome do aplicativo agendado
+        #   Program Type: tipo do aplicativo agendado
         #   Days: dias da semana em que o programa será executado
         #   Execute Hour: horário em que o programa será executado
-        columns = ("Program Path", "Program Name", "Program Type", "Days", "Execute Hour")
+        columns = ("Program Name", "Program Path", "Program Type", "Days", "Execute Hour")
         # Cria a Treeview para exibir os dados
         self.schedule_table = tkinter.ttk.Treeview(self.right_dashboard, columns=columns, show="headings")
         # Configura os cabeçalhos das colunas
@@ -385,8 +417,8 @@ class App(ctk.CTk):
         # Configura o estilo da tabela
         self.style = tkinter.ttk.Style()
         self.style.theme_use("clam")
-        self.style.configure("Treeview", background="#000811", foreground="white", fieldbackground="#000811", font=("Arial", 12, "normal"))
-        self.style.configure("Treeview.Heading", background="#000811", foreground="white", fieldbackground="#000811", font=("Arial", 12, "bold"))
+        self.style.configure("Treeview", background="#000000", foreground="white", fieldbackground="#000000", font=("Arial", 12, "normal"))
+        self.style.configure("Treeview.Heading", background="#000000", foreground="white", fieldbackground="#000000", font=("Arial", 12, "bold"))
         self.style.map('Treeview', background=[('selected', '#089c4c')])
         self.style.map('Treeview.Heading', background=[('selected', '#089c4c')])
         # Coleta os dados dos programas agendados do banco de dados
@@ -406,7 +438,7 @@ class App(ctk.CTk):
                     hour = hora.split("-")[0]
                     day = hora.split("-")[1]
                     # Adiciona uma tupla com as informações do programa agendado
-                    schedules.append((partial_path, program["program_name"], program["program_type"], day, hour))
+                    schedules.append((program["program_name"], partial_path, program["program_type"], day, hour))
         # Ordena a lista de schedules por dia da semana e horário
         schedules = sorted(schedules,key=lambda x: (self.day_order.get(x[3], 7), datetime.strptime(x[4], "%H:%M")))
 
@@ -418,6 +450,248 @@ class App(ctk.CTk):
         # Botão Clear Filter -> chama o método self.clear_filter para limpar os filtros aplicados na tabela
         self.clear_filter_bt = ctk.CTkButton(self.right_dashboard, text="Clear Filter", command=lambda: self.clear_filter(self.schedule_table, schedules), fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
         self.clear_filter_bt.pack(pady=10)
+    
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#   Método 'create_export' para criar um excel template de importação de schedule de programas
+#   Pede o caminho da pasta e o nome do arquivo para fazer o export
+#   Utiliza a classe 'Create_Excel' de 'create_excel_template.py' 
+#   Pega todos os schedules cadastrados no banco e coloca no arquivo para fazer a importação mais facilmente
+#   Parâmetros:
+#       Nenhum  
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+    def create_export(self):
+        # Pede o caminho da pasta e o nome do arquivo
+        file_name = filedialog.asksaveasfilename(title="Select the folder to save the Template Schedule", initialfile="Template_Schedule.xlsx", filetypes=[("Excel Files", "*.xlsx")])
+        # Se o caminho for selecionado
+        if file_name:
+            # Instancia a classe
+            excel = Create_Excel(file_name)
+            # Adciona a primeira aba do excel 
+            excel.add_sheet("Schedule")
+            # Define as colunas da primeira aba
+            excel.add_head("Schedule", ["Program", "Program", "HOUR", "MINUTE", "DAY_WEEK"])
+            # Lista temporária para armazenar os dados antes de ordenar
+            schedule_sort = []
+            # Pega os dados do banco de dados para colocar no export
+            for data in self.db_programs.get_all():
+                # Separa os schedules para melhor tratamento de dados macro
+                schedules = data['schedule_list'].split(',')
+                for sche in schedules:
+                    # Tenta fazer a separação dos dados micro
+                    try:
+                        # Separa tempo de dia
+                        timepart, day = sche.split('-')
+                        # Separa hora de minuto
+                        hour, minute = timepart.split(':')
+                        schedule_sort.append([data["id"], data["program_name"], int(hour), int(minute), day])
+                    except:
+                        schedule_sort.append([data["id"], data["program_name"], "", "", ""])
+
+            # Ordena os dados por hora e minuto
+            schedule_sort.sort(key=lambda x: (x[2] if isinstance(x[2], int) else 999, x[3] if isinstance(x[3], int) else 999))
+            # Adiciona os dados ordenados ao Excel
+            for row in schedule_sort:
+                hour_str = str(row[2]).zfill(2) if row[2] is not None else ""
+                minute_str = str(row[3]).zfill(2) if row[3] is not None else ""
+                excel.add_line("Schedule", [row[0], row[1], hour_str, minute_str, row[4]])
+            # Sheet number 2
+            excel.add_sheet("Caption")
+            excel.add_head("Caption", ["Caption and Atentions"])
+            caption = "Program -> Program ID registered in the database. Can be verified in the Terminator 'Programs' tab.\n'Program_Name' -> Name of the program registered in the database. Can be verified in the Terminator 'Programs' tab.\n'HOUR' -> Time the program should run.\n'MINUTE' -> Minute the program should run.\n'DAY_WEEK' -> Day of the week the program should run."
+            atencion1 = "ATENTION: PROGRAMS MUST BE PREVIOUSLY REGISTERED BEFORE IMPORTING ANY TYPE OF PROGRAM INTO THE RUNNING SCHEDULE!"
+            atencion2 = "ATENTION: THE DATA FROM 'HOUR', 'MINUTE' AND 'DAY_WEEK' WILL BE CONCATENATED BY THE APP TO GENERATE THE SCHEDULE ACCEPTED BY THE DATABASE,\nSO 'HOUR' AND 'MINUTE' MUST CONTAIN EXACTLY TWO CHARACTERS AND 'DAY_WEEK' MUST BE THE DAYS OF THE WEEK IN ENGLISH!"
+            atencion3 = "ATENTION: THE DATA ENTERED HERE WILL REPLACE YOUR CURRENT DATA. CHECK EACH SCHEDULE TO AVOID REWORK!"
+            atencion4 = "The days used are:"
+            days_list = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+            excel.add_line("Caption", [caption])
+            excel.add_line("Caption", [atencion1])
+            excel.add_line("Caption", [atencion2])
+            excel.add_line("Caption", [atencion3])
+            excel.add_line("Caption", [atencion4])
+            for day in days_list:
+                excel.add_line("Caption", [day])
+            # Seve the export
+            excel.save()
+            CTkMessagebox(title="Success",message=f"Schedule Template Exported Successfully in:\n{file_name}'.",icon="check",button_color="#089c4c",justify="center")
+            excel.open_excel_file()
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#   Método 'import_scheduele' para importar os dados de um excel com informações do schedule de rodagem dos programas
+#   Pede o caminho completo do arquivo com os dados
+#   Parâmetros:
+#       Nenhum
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+    def import_schedule(self):
+        list_user = []
+        users_values = self.db_users.get_all()
+        if users_values != []:
+            # Abre a janela de registro de configurações
+            password_dialog_adm = PasswordDialog(self)
+            # Pega a senha do usuário antes de permitir o acesso às importação
+            entered_password_adm = password_dialog_adm.get_password()
+            # Verifica se a senha está correta
+            if not Hash().check_login(entered_password_adm, self.db_settings.get_by_column("id", 1)["password"]):
+                CTkMessagebox(
+                    title="Error",
+                    message="Incorrect password. Action canceled!",
+                    icon="warning",
+                    button_color="#089c4c",
+                    justify="center"
+                )
+                self.folder_cleaner.stop()
+                return
+            # Para cada usuário
+            for user in self.db_users.get_all():
+                id_user = user["id"]
+                name = user["user_name"]
+                sesa = user["user_code"]
+                # Cria uma string com os dados do usuário e adciona na lista
+                user_data = f"{id_user}-{name}-{sesa}"
+                list_user.append(user_data)
+            # Abre a janela de seleção de usuário
+            selector_window = Window_UserSelector(self, list_user)
+            # Espera a janela ser fechada
+            self.wait_window(selector_window)  
+            # Pega o id do usuário selecionado
+            id_user, name_user, sesa_user = self.selected_user.split("-")
+            # Procura o usuário na base de dados
+            user = self.db_users.get_by_column("id", id_user)
+            # Se o usuário não existir retorna erro
+            if not user:
+                CTkMessagebox(title="Error", message="User does not find!", icon="warning", button_color="#089c4c", justify="center")
+                return
+            # Solicita a senha do dono
+            password_dialog = PasswordDialog(self, user_or_adm=f"USER: {self.selected_user}")
+            entered_password = password_dialog.get_password()
+            # Verifica se a senha está correta
+            # Se a senha estiver correta, abre a janela de alteração do usuário
+            if not Hash().check_login(entered_password, user["password"]) == True:
+                CTkMessagebox(
+                    title="Error",
+                    message="Incorrect password. Action canceled!",
+                    icon="warning",
+                    button_color="#089c4c",
+                    justify="center"
+                )
+                self.folder_cleaner.stop()
+                return
+            # Abre o diálogo para seleção do arquivo de agendamento
+            file_import_schedule = filedialog.askopenfilename(title="Select the Excel to import the Schedules", filetypes=[("Excel Files", "*.xlsx")])
+            # Se o arquivo for selecionado
+            if file_import_schedule:
+                # Tenta abrir o arquivo
+                try:
+                    schedule_book = openpyxl.load_workbook(filename=file_import_schedule)
+                # Retorna erro se o arquivo não puder ser aberto
+                except Exception as e:
+                    CTkMessagebox(
+                        title="Error",
+                        message=f"It is not possible open the file: {file_import_schedule}.\nCheck the error:\n{e}.",
+                        icon="warning",
+                        button_color="#089c4c",
+                        justify="center"
+                    )
+                    return
+                # Verifica se a aba "Schedule" existe
+                if "Schedule" in schedule_book.sheetnames:
+                    # Inicia o registro de importação
+                    content_initiated_import = f"-------------------------------------------------------------------------------------------------------------------\nInitiated Schedule Import. Responsible Owner: {self.selected_user}\n"
+                    self.manipulador.write_txt(self.manipulador.programs_txt, content_initiated_import)
+                    # Obtém a aba "Schedule"
+                    sheet = schedule_book["Schedule"]
+                    line_list = [item for item in sheet.iter_rows(values_only=True)]
+                    del line_list[0]  # Remove header
+
+                    program_schedule_map = {}
+                    agrouped = {}
+                    duplicated_entries = []
+                    # Para cada id, nome, hora, minuto e dia nos dados obtidos
+                    for program_id, program_name, hour, minute, day in line_list:
+                        # Verifica se os campos obrigatórios estão preenchidos:
+                        if hour is None or minute is None or day is None:
+                            content_hour_minute = f"The hour, minute, or day is missing for Program ID '{program_id}', Program Name '{program_name}'. Entry ignored.\n"
+                            self.manipulador.write_txt(self.manipulador.programs_txt, content_hour_minute)
+                            continue
+                        # Tenta converter hora e minuto
+                        try:
+                            hour = int(hour)
+                            minute = int(minute)
+                        # Se hour ou minute não forem válidos retorna um erro
+                        except ValueError:
+                            content_error_int = f"It was not possible convert to integer the hour and/or minute for Program ID '{program_id}', Program Name '{program_name}'. Entry ignored.\n"
+                            self.manipulador.write_txt(self.manipulador.programs_txt, content_error_int)
+                            continue
+                        # Verifica se a hora e o minuto estão dentro dos limites válidos
+                        if not (0 <= hour < 24) or not (0 <= minute < 60):
+                            content_error_hour_minute = f"The hour and/or minute is invalid for Program ID '{program_id}', Program Name '{program_name}'. Entry ignored.\n"
+                            self.manipulador.write_txt(self.manipulador.programs_txt, content_error_hour_minute)
+                            continue
+                        # Lista de dias possíveis 
+                        days_of_week = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+                        # Verifica se o dia é válido
+                        if day.upper() not in [item.upper() for item in days_of_week]:
+                            content_day = f"Invalid day of the week: {day}.\nMust be one of the following: {', '.join(days_of_week)}.\n"
+                            self.manipulador.write_txt(self.manipulador.programs_txt, content_day)
+                            continue
+                        # Tenta criar a chave e o formato de hora
+                        key = (program_id, program_name)
+                        format_hour = f"{str(hour).zfill(2)}:{str(minute).zfill(2)}-{day}"
+                        # Se a chave não existir no mapa, cria um novo conjunto
+                        if key not in program_schedule_map:
+                            program_schedule_map[key] = set()
+                        # Se o formato de hora já estiver no conjunto, é uma entrada duplicada
+                        # Verifica se há conflitos com programas iguais
+                        if format_hour in program_schedule_map[key]:
+                            content_duplicate = f"Duplicate schedule entry found for same program: '{format_hour}' already assigned to Program ID '{program_id}', Program Name '{program_name}'. Entry ignored.\n"
+                            self.manipulador.write_txt(self.manipulador.programs_txt, content_duplicate)
+                            duplicated_entries.append((key, format_hour))
+                            continue
+                        # Se o formato de hora já estiver no conjunto, é uma entrada duplicada
+                        # Verifica se há conflitos com outros programas
+                        for other_key, hours in program_schedule_map.items():
+                            if other_key != key and format_hour in hours:
+                                content_duplicate = f"Duplicate schedule entry found for different programs: '{format_hour}' already assigned to Program ID '{other_key[0]}', Program Name '{other_key[1]}'. Entry for Program ID '{program_id}', Program Name '{program_name}' ignored.\n"
+                                self.manipulador.write_txt(self.manipulador.programs_txt, content_duplicate)
+                                duplicated_entries.append((key, format_hour))
+                                break
+                        # Se não houver conflitos, adiciona a entrada ao mapa
+                        else:
+                            program_schedule_map[key].add(format_hour)
+
+                            if key not in agrouped:
+                                agrouped[key] = []
+                            agrouped[key].append(format_hour)
+
+                    # Para a rodagem automática para atualizar o schedule
+                    self.end_scheduler()
+
+                    # Limpa o campo schedule
+                    self.db_programs.clear_field("schedule_list")
+
+                    # Data atual para registro no banco
+                    atual_date = datetime.now().strftime("%d/%m/%Y - %H:%M:%S")
+
+                    # Iteração sobre os dados agrupados
+                    for (program_id, program_name), schedule_hours in agrouped.items():
+                        schedule_hours.sort()
+                        # Agora junta todos os dados das horas formatadas
+                        schedule_final = ",".join(schedule_hours)
+                        self.db_programs.update_schedule_by_program(program_id=program_id, program_name=program_name, schdedule_final=schedule_final, modified_date=atual_date, manipulador=self.manipulador)
+
+                    # Inicia novamente a rodagem automática com o banco de schedule atualizado
+                    self.start_scheduler()
+                    self.open_schedule()
+
+                    # Escreve no log de programas quem e quando modificou o schedule
+                    content = f"Schedule Loaded. Responsible Owner: {self.selected_user}.\nCheck the new schedules in the Terminator Schedule tab.\nModified Date: {atual_date}.\n-------------------------------------------------------------------------------------------------------------------\n"
+                    self.manipulador.write_txt(self.manipulador.programs_txt, content)
+                    CTkMessagebox(title="Success",message=f"Schedule Template Imported Successfully.",icon="check",button_color="#089c4c",justify="center")
+
+                else:
+                    CTkMessagebox(title="Error",message="The file is wrong: sheet 'Schedule' does not exist. \nFirst export the template!.", icon="warning",button_color="#089c4c",justify="center")
+                    return
+        else:
+            CTkMessagebox(title="Error",message="There are no registered users. \nYou must register users before registering programs.", icon="warning",button_color="#089c4c",justify="center")
+            return
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método open_programs para exibir a interface de gerenciamento de programas
 #   Cria botões para CADASTRO, ALTERAÇÃO, EXCLUSÃO de PROGRAMAS
@@ -434,16 +708,16 @@ class App(ctk.CTk):
         # Limpa o conteúdo atual da right_dashboard
         self.clear_frame(self.right_dashboard)
         # Cria o frame para os botões acima da tabela
-        self.button_frame = ctk.CTkFrame(self.right_dashboard, fg_color="#000811")
+        self.button_frame = ctk.CTkFrame(self.right_dashboard, fg_color="#000000")
         self.button_frame.pack(pady=10)
-        # Botão Add App -> chama o método self.add_programs para adicionar um novo programa
-        self.add_programs_button = ctk.CTkButton(self.button_frame, text="Add App", command=self.add_programs, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
+        # Botão Add Program -> chama o método self.add_programs para adicionar um novo programa
+        self.add_programs_button = ctk.CTkButton(self.button_frame, text="Add Program", command=self.add_programs, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
         self.add_programs_button.pack(side=tkinter.LEFT, padx=10)
-        # Botão Change App -> chama o método self.change_programs para alterar um programa existente
-        self.change_programs_button = ctk.CTkButton(self.button_frame, text="Change App", command=self.change_programs, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
+        # Botão Change Program -> chama o método self.change_programs para alterar um programa existente
+        self.change_programs_button = ctk.CTkButton(self.button_frame, text="Change Program", command=self.change_programs, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
         self.change_programs_button.pack(side=tkinter.LEFT, padx=10)
-        # Botão Delete App -> chama o método self.delete_programs para excluir um programa existente
-        self.delete_programs_button = ctk.CTkButton(self.button_frame, text="Delete App", command=self.delete_programs, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
+        # Botão Delete Program -> chama o método self.delete_programs para excluir um programa existente
+        self.delete_programs_button = ctk.CTkButton(self.button_frame, text="Delete Program", command=self.delete_programs, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
         self.delete_programs_button.pack(side=tkinter.LEFT, padx=10)
         # Botão History -> chama o método self.open_log para abrir a interface de visualização de logs
         self.logs_button = ctk.CTkButton(self.button_frame, text="History", command=lambda: self.open_log(self.manipulador.programs_txt, "Programs"), fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
@@ -451,12 +725,12 @@ class App(ctk.CTk):
         # Cria a tabela para exibir os programas cadastrados
         # Colunas da tabela:
         #   ID: identificador único do programa
-        #   Application Path: caminho do programa
-        #   Application Type: tipo do programa
-        #   Application Name: nome do programa
+        #   Program Path: caminho do programa
+        #   Program Type: tipo do programa
+        #   Program Name: nome do programa
         #   Owner: proprietário do programa
         #   Date Modified: data da última modificação do programa
-        columns = ("ID", "Application Path", "Application Type", "Application Name", "Owner", "Date Modified")
+        columns = ("ID", "Program Name", "Program Path", "Program Type", "Owner", "Date Modified")
         # Cria a Treeview para exibir os dados
         self.program_table = tkinter.ttk.Treeview(self.right_dashboard, columns=columns, show="headings")
         # Configura os cabeçalhos das colunas
@@ -469,8 +743,8 @@ class App(ctk.CTk):
         # Configura o estilo da tabela
         self.style = tkinter.ttk.Style()
         self.style.theme_use("clam")
-        self.style.configure("Treeview", background="#000811", foreground="white", fieldbackground="#000811", font=("Arial", 12, "normal"))
-        self.style.configure("Treeview.Heading", background="#000811", foreground="white", fieldbackground="#000811", font=("Arial", 12, "bold"))
+        self.style.configure("Treeview", background="#000000", foreground="white", fieldbackground="#000000", font=("Arial", 12, "normal"))
+        self.style.configure("Treeview.Heading", background="#000000", foreground="white", fieldbackground="#000000", font=("Arial", 12, "bold"))
         self.style.map('Treeview', background=[('selected', '#089c4c')])
         self.style.map('Treeview.Heading', background=[('selected', '#089c4c')])
 
@@ -487,7 +761,7 @@ class App(ctk.CTk):
             full_path = Path(app["program_path"])
             partial_path = Path("") / full_path.parts[-2] / full_path.name
             # Adiciona uma tupla com as informações do programa
-            programs.append((app["id"], partial_path, app["program_type"], app["program_name"], owner_name, app["date_modified"]))
+            programs.append((app["id"], app["program_name"], partial_path, app["program_type"], owner_name, app["date_modified"]))
         # Insere os dados na tabela
         for i, app in enumerate(programs):
             tag = 'oddrow' if i % 2 == 0 else 'evenrow'
@@ -513,7 +787,7 @@ class App(ctk.CTk):
         # Limpa o conteúdo atual da right_dashboard
         self.clear_frame(self.right_dashboard)
         # Cria o frame para os botões acima da tabela
-        self.button_frame = ctk.CTkFrame(self.right_dashboard, fg_color="#000811")
+        self.button_frame = ctk.CTkFrame(self.right_dashboard, fg_color="#000000")
         self.button_frame.pack(pady=10)
         # Botão Add User -> chama o método self.add_user para adicionar um novo usuário
         self.add_user_button = ctk.CTkButton(self.button_frame, text="Add User", command=self.add_user, fg_color="#089c4c", width=100, height=50, font=("Arial", 17))
@@ -547,8 +821,8 @@ class App(ctk.CTk):
         # Configura o estilo da tabela
         self.style = tkinter.ttk.Style()
         self.style.theme_use("clam")
-        self.style.configure("Treeview", background="#000811", foreground="white", fieldbackground="#000811", font=("Arial", 12, "normal"))
-        self.style.configure("Treeview.Heading", background="#000811", foreground="white", fieldbackground="#000811", font=("Arial", 12, "bold"))
+        self.style.configure("Treeview", background="#000000", foreground="white", fieldbackground="#000000", font=("Arial", 12, "normal"))
+        self.style.configure("Treeview.Heading", background="#000000", foreground="white", fieldbackground="#000000", font=("Arial", 12, "bold"))
         self.style.map('Treeview', background=[('selected', '#089c4c')])
         self.style.map('Treeview.Heading', background=[('selected', '#089c4c')])
         # Coleta os dados dos usuários cadastrados do banco de dados
@@ -581,7 +855,7 @@ class App(ctk.CTk):
      
         # Configurar o estilo de cada entrada do menu
         for index in range(menu.index(tkinter.END) + 1):
-            menu.entryconfig(index, background="#000811", foreground="white", activebackground="#089c4c", activeforeground="white")
+            menu.entryconfig(index, background="#000000", foreground="white", activebackground="#089c4c", activeforeground="white")
         # Exibe o menu na posição do cursor
         menu.post(self.right_dashboard.winfo_pointerx(), self.right_dashboard.winfo_pointery())
 
@@ -684,8 +958,9 @@ class App(ctk.CTk):
             CTkMessagebox(title="Error",message="Owner of the program not found!",icon="warning",button_color="#089c4c",justify="center")
             return
 
+        user_values = f"{user["id"]}-{user["user_name"]}-{user["user_code"]}"
         # Solicita a senha do dono
-        password_dialog = PasswordDialog(self)
+        password_dialog = PasswordDialog(self, user_or_adm=f"USER: {user_values}")
         # Pega a senha digitada
         entered_password = password_dialog.get_password()
 
@@ -749,8 +1024,9 @@ class App(ctk.CTk):
             CTkMessagebox(title="Error",message="Owner of the program not found!",icon="warning",button_color="#089c4c",justify="center")
             return
 
+        user_values = f"{user["id"]}-{user["user_name"]}-{user["user_code"]}"
         # Solicita a senha do dono
-        password_dialog = PasswordDialog(self)
+        password_dialog = PasswordDialog(self, user_or_adm=f"USER: {user_values}\nOR\nADM USER")
         entered_password = password_dialog.get_password()
         
         if Hash().check_login(entered_password, user["password"]) == True or (Hash().check_login(entered_password, self.db_settings.get_by_column("id", 1)["password"]) == True):
@@ -758,10 +1034,10 @@ class App(ctk.CTk):
             self.end_scheduler()
             self.db_programs.delete(program_id)
             # Registra a ação no log de programas
-            content = f"Program Name: '{values[3].strip()}' Deleted.\nHour Deleted {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nOwner: {values[5].strip()}.\nProgram Type: {values[2].strip()}.\n"
+            content = f"-------------------------------------------------------------------------------------------------------------------\nProgram Name: '{values[3].strip()}' Deleted.\nHour Deleted {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nOwner: {values[5].strip()}.\nProgram Type: {values[2].strip()}\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.programs_txt, content)
 
-            CTkMessagebox(title="Porgram deleted",message=f"Program '{program['program_name']}' has been deleted.",icon="check",button_color="#089c4c",justify="center")
+            CTkMessagebox(title="Program deleted",message=f"Program '{program['program_name']}' has been deleted.",icon="check",button_color="#089c4c",justify="center")
 
             self.open_programs()  # Atualiza a tabela, se você tiver esse método
             self.start_scheduler()  # Iniciar o agendador novamente
@@ -836,7 +1112,7 @@ class App(ctk.CTk):
             title="Sucesso",
             message="Operação concluída com sucesso!",
             icon="check",
-            option_1="Fechar",
+            option_1="Close",
             # fade_in_duration=0.05,
             button_color="#089c4c",
             justify="center"
@@ -846,9 +1122,9 @@ class App(ctk.CTk):
         def close_box():
             try:
                 msg_box.event_generate("<<MessageboxClose>>")
-                msg_box.button_event("Fechar")
+                msg_box.button_event("Close")
             except Exception as e:
-                print("Erro ao tentar fechar a messagebox:", e)
+                print(e)
 
         # Agenda o fechamento da messagebox após 2 segundos
         self.after(2000, close_box)
@@ -883,7 +1159,7 @@ class App(ctk.CTk):
                             if item[0] == exec_id:
                                 # Atualiza o status para "Canceled"
                                 self.execute_list[j] = (item[0], item[1], item[2], item[3], "Canceled", item[5])
-                                content = f"Program '{values[1].strip()}' Canceled.\nStart Hour: {values[2].strip()}.\nCanceled Hour: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nType Run: {values[5].strip()}.\n"
+                                content = f"-------------------------------------------------------------------------------------------------------------------\nProgram '{values[1].strip()}' Canceled.\nStart Hour: {values[2].strip()}.\nCanceled Hour: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nType Run: {values[5].strip()}\n-------------------------------------------------------------------------------------------------------------------\n"
                                 self.manipulador.write_txt(self.manipulador.executed_txt, content)
                                 # Atualiza a tabela de execuções
                                 self.update_executed()
@@ -913,7 +1189,6 @@ class App(ctk.CTk):
         # Se o agendador existir, para-o
         if hasattr(self, "scheduler"):
             self.scheduler.stop()
-            print("Automatic scheduler ended")
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método add_user para adicionar um novo usuário
 #   Solicita a senha do dono antes de permitir o cadastro
@@ -956,8 +1231,9 @@ class App(ctk.CTk):
             CTkMessagebox(title="Error", message="User does not find!", icon="warning", button_color="#089c4c", justify="center")
             return
         
-        # Solicita a senha ao dono
-        password_dialog = PasswordDialog(self)
+        user_values = f"{user["id"]}-{user["user_name"]}-{user["user_code"]}"
+        # Solicita a senha do dono
+        password_dialog = PasswordDialog(self, user_or_adm=f"USER: {user_values}\nOR\nADM USER")
         entered_password = password_dialog.get_password()
         # Verifica se a senha está correta
         # Se a senha estiver correta, abre a janela de alteração do usuário
@@ -992,12 +1268,13 @@ class App(ctk.CTk):
             CTkMessagebox(title="Error", message="User does not find!", icon="warning", button_color="#089c4c", justify="center")
             return
 
+        user_values = f"{user["id"]}-{user["user_name"]}-{user["user_code"]}"
         # Solicita a senha do dono
         password_dialog = PasswordDialog(self)
         entered_password = password_dialog.get_password()
         # Verifica se a senha está correta
         # Se a senha estiver correta, deleta o usuário e todos os programas dele
-        if Hash().check_login(entered_password, user["password"]) == True or (Hash().check_login(entered_password, self.db_settings.get_by_column("id", 1)["password"]) == True):
+        if (Hash().check_login(entered_password, self.db_settings.get_by_column("id", 1)["password"]) == True):
             # Deleta todos os programas do usuário
             try:
                 self.db_programs.delete_by_column("owner_id", user["id"])
@@ -1006,7 +1283,7 @@ class App(ctk.CTk):
             # Deleta o usuário
             self.db_users.delete(user["id"])
             # Registra a ação no log de usuários
-            content = f"User '{user_values[1].strip()}' Deleted.\nHour Deleted: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nUser Code: {user_values[2].strip()}.\nUser E-mail: {user_values[3].strip()}"
+            content = f"-------------------------------------------------------------------------------------------------------------------\nUser '{user_values[1].strip()}' Deleted.\nHour Deleted: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nUser Code: {user_values[2].strip()}.\nUser E-mail: {user_values[3].strip()}\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.users_txt, content)
             CTkMessagebox(title="User Deleted", message=f"User '{user['user_name']}' and his programs have been deleted", icon="check", button_color="#089c4c", justify="center")
             # Atualiza a lista de usuários

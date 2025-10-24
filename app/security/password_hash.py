@@ -63,7 +63,6 @@ class Hash:
             senha_original = self.fernet.decrypt(password_stored).decode()
             return entered_password == senha_original
         except Exception as e:
-            print("Erro ao verificar senha:", e)
             return False
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método para recuperar/descriptografar a senha original a partir da versão criptografada.
@@ -82,5 +81,4 @@ class Hash:
 
             return self.fernet.decrypt(password_stored).decode()
         except Exception as e:
-            print(f"Erro ao recuperar senha: {e}")
             return None

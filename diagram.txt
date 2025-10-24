@@ -1,0 +1,206 @@
++-----------------------------+
+|           App               |  (herda de ctk.CTk)
++-----------------------------+
+| - manipulador: manipulador  |
+| - pixel_art: PixelArtIcon   |
+| - db_programs: GenericDBOperations<ProgramsDB> |
+| - db_users: GenericDBOperations<UsersDB>       |
+| - db_settings: GenericDBOperations<SettingsDB> |
+| - main_container: CTkFrame  |
+| - left_side_panel: CTkFrame |
+| - data_atual_txt: str       |
+| - executed_content: str     |
+| - programs_content: str     |
+| - users_content: str        |
+| - settings_content: str     |
++-----------------------------+
+| + __init__()                |
+| + max_window()              |
+| + executed()                |
+| + update_executed()         |
+| + open_schedule()           |
+| + create_export()           |
+| + import_schedule()         |
+| + open_programs()           |
+| + users()                   |
+| + _settings()               |
+| + clear_frame()             |
+| + show_filter_menu()        |
+| + clear_filter()            |
+| + stop_execution()          |
+| + process_loop()            |
+| + start_scheduler()         |
+| + settings()                |
+| + open_log()                |
+| + users_authentication()    |
+| + select_button()           |
++-----------------------------+
+
++-----------------------------+
+|        manipulador          |
++-----------------------------+
+| - maestro_folder: str       |
+| - database_folder: str      |
+| - master_folder: str        |
+| - logs_folder: str          |
+| - image_folder: str         |
+| - executed_txt: str         |
+| - programs_txt: str         |
+| - users_txt: str            |
+| - settings_txt: str         |
+| - icon_terminator: str      |
++-----------------------------+
+| + create_folders(path: str) |
+| + create_txt(path: str, content: str) |
+| + write_txt(path: str, content: str)  |
++-----------------------------+
+
++-----------------------------+
+|  GenericDBOperations<T>     |
++-----------------------------+
+| - db_class: type            |
+| - db_url: str               |
++-----------------------------+
+| + register(**kwargs)        |
+| + update(id, **kwargs)      |
+| + get_all()                 |
++-----------------------------+
+
++-----------------------------+
+|        ProgramsDB           |  (herda de Base)
++-----------------------------+
+| __tablename__ = 'programs'  |
+| id: Integer (primary key)   |
+| program_path: String        |
+| program_name: String        |
+| program_type: String        |
+| owner_id: Integer           |
+| schedule_list: String       |
+| parameters: String          |
+| date_modified: String       |
++-----------------------------+
+
++-----------------------------+
+|         UsersDB             |  (herda de Base)
++-----------------------------+
+| __tablename__ = 'users'     |
+| id: Integer (primary key)   |
+| user_name: String           |
+| user_code: String (unique)  |
+| user_email: String          |
+| password: String            |
+| date_modified: String       |
++-----------------------------+
+
++-----------------------------+
+|        SettingsDB           |  (herda de Base)
++-----------------------------+
+| __tablename__ = 'settings'  |
+| id: Integer (primary key)   |
+| tableau_bat: String         |
+| password: String            |
+| paths_delete: String        |
++-----------------------------+
+
++-----------------------------+
+|       TextViewerApp         |  (herda de ctk.CTkToplevel)
++-----------------------------+
+| - program_path: str         |
+| - program_name: str         |
+| - bg_color: str             |
+| - container_frame: CTkFrame |
+| - text_frame: CTkFrame      |
+| - textbox: Text             |
+| - scrollbar: Scrollbar      |
++-----------------------------+
+| + __init__(program_path, program_name) |
+| + _load_txt()              |
+| + _on_close()              |
++-----------------------------+
+
++-----------------------------+
+|       Inter_Settings        |  (herda de ctk.CTkToplevel)
++-----------------------------+
+| - manipulador: manipulador  |
+| - main_app: App             |
+| - settings_data: dict       |
+| - settingsdb: GenericDBOperations<SettingsDB> |
+| - main_container: CTkFrame  |
+| - form_container: CTkFrame  |
+| - bat_path_frame: CTkFrame  |
+| - entry_tableau_bat: CTkEntry |
+| - button_path: CTkButton    |
+| - password_frame: CTkFrame  |
+| - entry_password: CTkEntry  |
+| - button_eye: CTkButton     |
+| - folder_frame: CTkFrame    |
+| - entry_folder: CTkEntry    |
+| - bt_select_folder: CTkButton |
+| - list_box_frame: CTkFrame  |
+| - buttons_frame: CTkFrame   |
+| - bt_add_folder: CTkButton  |
+| - bt_remove_folder: CTkButton |
+| - folders_listbox: Listbox  |
+| - folders_list: list        |
+| - bnt_register_container: CTkFrame |
+| - button_register: CTkButton|
+| - button_log_settings: CTkButton |
++-----------------------------+
+| + __init__(main_app, settings_data=None) |
+| + open_log(path_log, name_log)           |
+| + on_closing()                           |
+| + select_path()                          |
+| + select_folder(target_entry)            |
+| + add_folder()                           |
+| + remove_folder()                        |
+| + alterar_visibilidade()                 |
+| + register_data()                        |
++-----------------------------+
+
++-----------------------------+
+|   Inter_Register_APP         |  (herda de ctk.CTkToplevel)
++-----------------------------+
+| (estrutura semelhante a Inter_Settings)
++-----------------------------+
+
++-----------------------------+
+|   Inter_Register_PREP        |  (herda de ctk.CTkToplevel)
++-----------------------------+
+| (estrutura semelhante a Inter_Settings)
++-----------------------------+
+
++-----------------------------+
+|   Inter_register_users       |  (herda de ctk.CTkToplevel)
++-----------------------------+
+| (estrutura semelhante a Inter_Settings)
++-----------------------------+
+
++-----------------------------+
+|   Window_UserSelector        |  (herda de ctk.CTkToplevel)
++-----------------------------+
+| (estrutura de seleção de usuário)
++-----------------------------+
+
++-----------------------------+
+|   Window_Selector            |  (herda de ctk.CTkToplevel)
++-----------------------------+
+| (estrutura de seleção de interface)
++-----------------------------+
+
++-----------------------------+
+|   Runner                     |
++-----------------------------+
+| (execução de tarefas assíncronas)
++-----------------------------+
+
++-----------------------------+
+|   FolderCleaner              |
++-----------------------------+
+| (limpeza de pastas temporárias)
++-----------------------------+
+
++-----------------------------+
+|   PixelArtIcon               |
++-----------------------------+
+| + create_icon()              |
++-----------------------------+

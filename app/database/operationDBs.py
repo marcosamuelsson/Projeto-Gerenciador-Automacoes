@@ -46,12 +46,11 @@ class GenericDBOperations:
 #   **kwargs: Argumentos nomeados correspondentes aos campos do modelo a serem atualizados.
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     def update(self, record_id, **kwargs):
-        with self.Session() as session:
-            record = session.query(self.model_class).get(record_id)
-            if record:
-                for key, value in kwargs.items():
-                    setattr(record, key, value)
-                session.commit()
+        record = self.session.query(self.model_class).get(record_id)
+        if record:
+            for key, value in kwargs.items():
+                setattr(record, key, value)
+            self.session.commit()
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método para deletar um registro do banco de dados pelo ID.
 #   Parâmetro:
@@ -69,9 +68,8 @@ class GenericDBOperations:
 #       value: Valor a ser comparado para deletar os registros.
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     def delete_by_column(self, column_name, value):
-        with self.Session() as session:
-            session.query(self.model_class).filter(getattr(self.model_class, column_name) == value).delete()
-            session.commit()
+        self.session.query(self.model_class).filter(getattr(self.model_class, column_name) == value).delete()
+        self.session.commit()
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método que pega todos os registros do banco de dados e retorna como uma lista de dicionários.
 #   Parâmetros:
@@ -91,6 +89,39 @@ class GenericDBOperations:
 #   Retorna o registro como um dicionário ou None se não encontrado.
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
     def get_by_column(self, column_name, value):
-        with self.Session() as session:
-            result = session.query(self.model_class).filter(getattr(self.model_class, column_name) == value).first()
-            return result.__dict__ if result else None
+        result = self.session.query(self.model_class).filter(getattr(self.model_class, column_name) == value).first()
+        return result.__dict__ if result else None
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#   Método para apagar todo o registro de um campo do banco de dados
+#   Parâmetros:
+#       field_name: nome do campo que deseja apagar
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+    def clear_field(self, field_name):
+        # Verifica se o campo existe na model_class
+        if hasattr(self.model_class, field_name):
+            field = getattr(self.model_class, field_name)
+            self.session.query(self.model_class).update({field: ""})
+            self.session.commit()
+        else:
+            print(f"Field '{field_name}' does not exist in table '{self.model_class.__tablename__}'.")
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#   Método para carregar somente os schedules para os porgramas 
+#   Parâmetros:
+#       program_id: ID do programa que deseja carregar
+#       program_name: nome do programa que deseja carregar
+#       schedule_final: lista de horas para carregar no campo schedule
+#       modified_date: data de modificação do banco de dados   
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+    def update_schedule_by_program(self, program_id, program_name, schdedule_final, modified_date, manipulador):
+        record = self.session.query(self.model_class).get(program_id)
+        if record:
+            if record.program_name == program_name:
+                record.schedule_list = schdedule_final
+                record.date_modified = modified_date
+                self.session.commit()
+            else:
+                content_name = f"Program name '{program_name}' does not match the record with ID '{program_id}'.\n"
+                manipulador.write_txt(manipulador.programs_txt, content_name)
+        else:
+            content_id = f"Program with ID '{program_id}' not found!\n"
+            manipulador.write_txt(manipulador.programs_txt, content_id)

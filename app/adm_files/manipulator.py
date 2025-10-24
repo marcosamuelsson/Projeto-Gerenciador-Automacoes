@@ -12,12 +12,14 @@ Qualquer modificação ou cópia deste código deve ser autorizada pelo autor!
 #   json: para manipulação de arquivos JSON
 #   pathlib.Path: para manipulação de caminhos de arquivos e pastas
 #   shutil: para operações de alto nível em arquivos e pastas
+#   Hash: para hash e verificação de senhas
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 import os
 import sys
 import json
 from pathlib import Path
 import shutil
+from app.security.password_hash import Hash
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Classe para manipulação de arquivos e pastas do sistema operacional
 #   Métodos:
@@ -57,12 +59,16 @@ class manipulador:
         self.database_folder = os.path.join(self.maestro_folder, "Database")
         self.master_folder = os.path.join(self.maestro_folder, "Master Files")
         self.logs_folder = os.path.join(self.maestro_folder, "Logs")
+        self.image_folder = os.path.join(self.maestro_folder, "Images")
 
         # Criação dos .txt para armazenar todas as modificações das tabelas dos bancos de dados
         self.executed_txt = os.path.join(self.logs_folder, "executed.txt")
         self.programs_txt = os.path.join(self.logs_folder, "programs.txt")
         self.users_txt = os.path.join(self.logs_folder, "users.txt")
         self.settings_txt = os.path.join(self.logs_folder, "settings.txt")
+
+        # Caminho ícone imagem
+        self.icon_terminator = os.path.join(self.image_folder, "icon_terminator.ico")
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método para apagar um arquivo ou pasta
 #   Parâmetros: 1. caminho do arquivo ou pasta
@@ -90,14 +96,9 @@ class manipulador:
 #   Parâmetros: 1. nome da pasta
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#     
     def create_folders(self, name_folder):
-        # Pega o nome da pasta a ser criada
-        folder_name = os.path.basename(name_folder)
-
         # Cria a pasta se não existir
         if not os.path.exists(name_folder):
             os.makedirs(name_folder)
-        else:
-            print(f"The folder '{folder_name}' already exists.")
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método para limpar o conteúdo de uma pasta
 #   Parâmetros: 1. caminho da pasta
@@ -119,8 +120,6 @@ class manipulador:
                     self.dell_folder(path_item)
             except Exception as e:
                 print(f"Error to remove the {path_item}: \n{e}")
-        
-        print(f"Folder {path_folder} cleanned succefully!")
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método para criar um arquivo .txt
 #   Parâmetros: 1. caminho do arquivo .txt
@@ -148,36 +147,34 @@ class manipulador:
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método para criar um arquivo de conexão JSON para usar no PREP
 #   Parâmetros: 1. nome do arquivo JSON
-#               2. out_username: nome de usuário de saída
-#               3. out_password: senha de usuário de saída
-#               4. out_server_url: URL do servidor de saída
-#               5. out_content_url: URL do conteúdo de saída
-#               6. in_username: nome de usuário de entrada
-#               7. in_password: senha de usuário de entrada
-#               8. in_hostname: nome do host de entrada
-#               9. in_content_url: URL do conteúdo de entrada
+#               2. output_list - lista de conexões de saída
+#               3. input_list - lista de conexões de entrada
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-    def create_connection_file(self, file_name,
-                               out_username="", out_password="", out_server_url="", out_content_url="", 
-                               in_username="", in_password="", in_hostname="", in_content_url=""):
+    def create_connection_file(self, file_name, output_list, input_list):
         # Dados a serem escritos no arquivo JSON
+        out_data = []
+        for data_out in output_list:
+            out_data.append({
+                "serverUrl": data_out["ServerURLOut"],
+                "contentUrl": data_out["ContentURLOut"],
+                "username": data_out["UsernameOut"],
+                "password": Hash().restore_password(data_out["PasswordOut"])
+            })
+        in_data = []
+        for data_in in input_list:
+            in_data.append({
+                "username": data_in["UsernameIn"],
+                "hostname": data_in["HostnameIn"],
+                "contentUrl": data_in["ContentURLIn"],
+                "password": Hash().restore_password(data_in["PasswordIn"])
+            })
+
         data = {
-            "outputConnections": [
-                {
-                    "serverUrl": out_server_url,
-                    "contentUrl": out_content_url,
-                    "username": out_username,
-                    "password": out_password
-                }
-            ],
-            "inputConnections": [
-                {
-                    "username": in_username,
-                    "hostname": in_hostname,
-                    "contentUrl": in_content_url,
-                    "password": in_password
-                }
-            ]
+            "outputConnections": 
+                out_data
+            ,
+            "inputConnections": 
+                in_data
         }
         # Escreve os dados no arquivo JSON
         with open(file_name, "w") as file:

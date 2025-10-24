@@ -70,7 +70,7 @@ class Inter_Settings(ctk.CTkToplevel):
 
         # Define o título da janela
         self.title("Settings")
-
+        self.wm_iconbitmap(self.manipulador.icon_terminator) # ícone da janela
         # Faz com que o APP seja grande o sufuciente para preencher toda a tela
         self.resizable(False, False)
         
@@ -163,10 +163,12 @@ class Inter_Settings(ctk.CTkToplevel):
         # Define o botão de confirmação de registro
         self.button_register = ctk.CTkButton(self.bnt_register_container, text="Save", fg_color="#089c4c", command=self.register_data)
         self.button_register.grid(row=5, column=1, pady=5, sticky="w")
-
+        
+        # Define o botão para abrir a janela de log
         self.button_log_settings = ctk.CTkButton(self.bnt_register_container, text="History",  fg_color="#089c4c", command=lambda: self.open_log(self.manipulador.settings_txt, "Settings"))
         self.button_log_settings.grid(row=6, column=1, pady=5, sticky="w")
 
+        # Se os dados já estiverem preenchidos
         if self.settings_data:
             self.entry_tableau_bat.insert(0, self.settings_data["tableau_bat"])
             self.entry_password.insert(0, Hash().restore_password(self.settings_data["password"]))
@@ -306,7 +308,7 @@ class Inter_Settings(ctk.CTkToplevel):
         if hasattr(self, "settings_data") and self.settings_data:
             self.settingsdb.update(self.settings_data["id"], **settings_data)
 
-            content = f"Settings Updated {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nTableau Bat: {tableau_bat}.\nPaths to delete: {self.folders_list}.\n"
+            content = f"-------------------------------------------------------------------------------------------------------------------\nSettings Updated {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nTableau Bat: {tableau_bat}.\nPaths to delete: {self.folders_list}.\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.settings_txt, content)
 
             CTkMessagebox(
@@ -319,8 +321,7 @@ class Inter_Settings(ctk.CTkToplevel):
         
         else:
             self.settingsdb.register(**settings_data)
-            
-            content = f"Settings Updated {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nTableau Bat: {tableau_bat}.\nPaths to delete: {self.folders_list}.\n"
+            content = f"-------------------------------------------------------------------------------------------------------------------\nSettings Registered {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nTableau Bat: {tableau_bat}.\nPaths to delete: {self.folders_list}.\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.settings_txt, content)
             
             CTkMessagebox(title="Success", message="Settings registered successfully!", icon="info", button_color="#089c4c", justify="center")

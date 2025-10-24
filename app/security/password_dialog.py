@@ -10,6 +10,7 @@ Qualquer modificação ou cópia deste código deve ser autorizada pelo autor!
 #       customtkinter: para criação da interface gráfica
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 import customtkinter as ctk
+from app.adm_files.manipulator import manipulador
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Classe que vai contruir a Interface de diálogo de senhas 
 #   Possui os seguintes métodos:
@@ -22,9 +23,10 @@ import customtkinter as ctk
 #       ctk.CTkTopLevel: define que a janela fique sempre acima da janela principal sempre que acionada
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------# 
 class PasswordDialog(ctk.CTkToplevel):
-    def __init__(self, parent, title="Password Confirmation"):
+    def __init__(self, parent, title="Password Confirmation", user_or_adm = "ADM USER"):
         super().__init__(parent)
         self.title(title)
+        self.iconbitmap(manipulador().icon_terminator)
         self.geometry("400x150")
         self.resizable(False, False)
         self.grab_set()
@@ -32,7 +34,7 @@ class PasswordDialog(ctk.CTkToplevel):
         # Centralizar a janela
         self.update_idletasks()  # Garante que a geometria esteja atualizada
         width = 400
-        height = 150
+        height = 230
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width // 2) - (width // 2)
@@ -42,16 +44,16 @@ class PasswordDialog(ctk.CTkToplevel):
         self.password = None
         self.show_password = False
 
-        self.label = ctk.CTkLabel(self, text="Type the password to confirm:")
+        self.label = ctk.CTkLabel(self, text=f"Type the password to confirm:\n{user_or_adm}")
         self.label.pack(pady=(20, 5))
 
         self.entry = ctk.CTkEntry(self, show="*")
         self.entry.pack(pady=5)
 
-        self.toggle_button = ctk.CTkButton(self, text="Show", command=self.change_visibility)
+        self.toggle_button = ctk.CTkButton(self, text="Show", command=self.change_visibility, fg_color="#089c4c", font=("Arial", 15, "normal"))
         self.toggle_button.pack(pady=5)
 
-        self.confirm_button = ctk.CTkButton(self, text="Confirm", command=self.confirm)
+        self.confirm_button = ctk.CTkButton(self, text="Confirm", command=self.confirm, fg_color="#089c4c", font=("Arial", 15, "normal"))
         self.confirm_button.pack(pady=10)
 
         self.entry.bind("<Return>", lambda event: self.confirm())

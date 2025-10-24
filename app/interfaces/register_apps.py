@@ -90,6 +90,9 @@ class Inter_Register_APP(ctk.CTkToplevel):
         # Define o título da Janela
         self.title("Register App")
 
+        # ícone da janela
+        self.wm_iconbitmap(self.manipulador.icon_terminator)
+        
         # Faz com que o APP seja grande o suficiente para preencher toda a tela
         self.resizable(False, False)
         
@@ -169,8 +172,8 @@ class Inter_Register_APP(ctk.CTkToplevel):
 
         self.spinbox_hour = tkinter.Spinbox(self.frame_times, from_=0, to=23, textvariable=self.hour_var, width=5, format="%02.0f", validate="key", validatecommand=(vcmd_hour, '%P'))
         self.spinbox_minute = tkinter.Spinbox(self.frame_times, from_=0, to=59, textvariable=self.minute_var, width=5, format="%02.0f", validate="key", validatecommand=(vcmd_minute, '%P'))
-        dias_semana = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-        self.spinbox_days = tkinter.Spinbox(self.frame_times, values=dias_semana, textvariable=self.day_var, width=10, state="readonly", wrap=True)
+        days_of_week = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        self.spinbox_days = tkinter.Spinbox(self.frame_times, values=days_of_week, textvariable=self.day_var, width=10, state="readonly", wrap=True)
 
         # Campos de hora, minuto e dia
         self.spinbox_hour.grid(row=0, column=0, padx=5, pady=5)
@@ -250,13 +253,14 @@ class Inter_Register_APP(ctk.CTkToplevel):
             owner_name = next((name for name, uid in self.owner_name_to_id.items() if uid == owner_id), None)
             if owner_name:
                 self.entry_owner_name.set(owner_name)
+                self.entry_owner_name.configure(state="disabled")
 
             self.times_list = self.program_data["schedule_list"].split(",") if self.program_data["schedule_list"] else []
             for time in self.times_list:
                 self.times_listbox.insert(tkinter.END, time)
             
             self.parameters_list = self.program_data["parameters"].split(",") if self.program_data["parameters"] else []
-            for parameter  in self.parameters_list:
+            for parameter in self.parameters_list:
                 self.params_listbox.insert(tkinter.END, parameter)
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Método que define o que fazer e como fazer caso o usuário feche repentnamente a janela
@@ -490,7 +494,7 @@ class Inter_Register_APP(ctk.CTkToplevel):
             return
         
         if self.times_list == []:
-            confirm = CTkMessagebox(title="Atencion!",
+            confirm = CTkMessagebox(title="Atention!",
                                     message="This program does not have set schedules.\nDo you want to continue anyway?",
                                     icon="warning",
                                     option_1="Yes",
@@ -519,7 +523,7 @@ class Inter_Register_APP(ctk.CTkToplevel):
         # Atualiza ou registra
         if hasattr(self, "program_data") and self.program_data:
             self.programsdb.update(self.program_data["id"], **program_data)
-            content = f"Program: '{app_name}' Updated.\nHour Updated: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nOwner: {owner_name}.\nProgram Type: {program_type}.\nList Hours: {self.times_list}\n"
+            content = f"-------------------------------------------------------------------------------------------------------------------\nProgram: '{app_name}' Updated.\nHour Updated: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nOwner: {owner_name}.\nProgram Type: {program_type}.\nList Hours: {self.times_list}.\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.programs_txt, content)
             
             CTkMessagebox(
@@ -529,17 +533,18 @@ class Inter_Register_APP(ctk.CTkToplevel):
                 justify="center")
             
         else:
+            owner_id = self.owner_name_to_id[owner_name]
+            user = self.usersdb.get_by_column("id", owner_id)
+
+            user_string = f"{user["id"]}-{user["user_name"]}-{user["user_code"]}"
             # Solicita a senha do usuário
-            password_dialog = PasswordDialog(self)
+            password_dialog = PasswordDialog(self, user_or_adm=f"USER: {user_string}")
             entered_password = password_dialog.get_password()
 
             if entered_password is None:
                 return  # Usuário fechou a janela
 
             # Verifica a senha do usuário selecionado
-            owner_id = self.owner_name_to_id[owner_name]
-            user = self.usersdb.get_by_column("id", owner_id)
-
             if not user or (Hash().check_login(entered_password, user["password"]) != True):
                 CTkMessagebox(
                     title="Error",
@@ -551,7 +556,7 @@ class Inter_Register_APP(ctk.CTkToplevel):
 
             self.programsdb.register(**program_data)
 
-            content = f"Program: '{app_name}' Registered.\nHour Registered: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nOwner: {owner_name}.\nProgram Type: {program_type}.\nList Hours:{self.times_list}\n"
+            content = f"-------------------------------------------------------------------------------------------------------------------\nProgram: '{app_name}' Registered.\nHour Registered: {datetime.now().strftime("%d/%m/%Y - %H:%M:%S")}.\nOwner: {owner_name}.\nProgram Type: {program_type}.\nList Hours:{self.times_list}\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.programs_txt, content)
             
             CTkMessagebox(

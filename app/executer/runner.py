@@ -9,6 +9,7 @@ Qualquer modificação ou cópia deste código deve ser autorizada pelo autor!
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #   Importações necessárias para a execução do Runner
 #   re - Biblioteca para expressões regulares, usada para manipulação de strings.
+#   ast - Biblioteca para manipulação de estruturas de dados em Python.
 #   asyncio - Biblioteca para programação assíncrona, permitindo a execução de tarefas sem bloquear o fluxo principal.
 #   datetime - Biblioteca para manipulação de datas e horas.
 #   Applications internas:
@@ -18,6 +19,7 @@ Qualquer modificação ou cópia deste código deve ser autorizada pelo autor!
 #       operationDBs - Classe para operações genéricas no banco de dados.
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 import re
+import ast
 import asyncio
 from datetime import datetime
 from app.security.password_hash import Hash
@@ -117,16 +119,37 @@ class Runner:
                     prep_cli_path = self.db_settings.get_by_column("id", 1)["tableau_bat"]
                     # Garante que o caminho do prep_cli existe
                     self.path_json = os.path.join(self.master_files, f"{name}.json")
-                    # Cria o arquivo de configuração JSON necessário para o Prep
-                    self.manipulador.create_connection_file(self.path_json,
-                                                            parameters[0], parameters[1], parameters[2], parameters[3],
-                                                            parameters[4], parameters[5], parameters[6], parameters[7])
-                    # Espera-se que 'parameters' contenha o caminho para o JSON de configuração
-                    process = await asyncio.create_subprocess_exec(
-                        prep_cli_path, "run", "-t", path, "-c", self.path_json,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
-                    )
+
+                    if parameters == []:
+                        # Espera-se que 'parameters' contenha o caminho para o JSON de configuração
+                        process = await asyncio.create_subprocess_exec(
+                            prep_cli_path, "run", "-t", path,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                    else:
+                        # Separando os dados em litas de output e input
+                        outputs = []
+                        inputs = []
+                        for item in parameters:
+                            parsed = ast.literal_eval(item)
+                            if any(key.endswith('Out') for key in parsed.keys()):
+                                outputs.append(parsed)
+                            elif any(key.endswith('In') for key in parsed.keys()):
+                                inputs.append(parsed)
+
+                        # Cria o arquivo de configuração JSON necessário para o Prep
+                        self.manipulador.create_connection_file(self.path_json, outputs, inputs)
+                        # Espera o arquivo ser criado
+                        while not os.path.exists(self.path_json):
+                            await asyncio.sleep(1)
+                        # Espera-se que 'parameters' contenha o caminho para o JSON de configuração
+                        process = await asyncio.create_subprocess_exec(
+                            prep_cli_path, "run", "-t", path, "-c", self.path_json,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        
                 # Associa o processo à tarefa atual para permitir o cancelamento
                 current_task = asyncio.current_task()
                 current_task.process = process
@@ -143,11 +166,11 @@ class Runner:
                 # Registra a saída no arquivo de logs
                 # Se a execução foi bem-sucedida, registra a saída padrão
                 if final_status == "Success":
-                    content = f"Program ID: {id}.\nProgram Name: {name}.\nFinish Hour: {datetime.now().strftime('%d/%m/%Y - %H:%M:%S')}.\nProgram Type: {type_program}.\nProgram Path: {path}.\nType Run: {type_run}.\nOutput: {final_status}\n{self.safe_decode(stdout)}\n"
+                    content = f"-------------------------------------------------------------------------------------------------------------------\nProgram ID: {id}.\nProgram Name: {name}.\nFinish Hour: {datetime.now().strftime('%d/%m/%Y - %H:%M:%S')}.\nProgram Type: {type_program}.\nProgram Path: {path}.\nType Run: {type_run}.\nOutput: {final_status}\n{self.safe_decode(stdout)}.\n-------------------------------------------------------------------------------------------------------------------\n"
                     self.manipulador.write_txt(self.manipulador.executed_txt, content)
                 # Se houve um erro na execução, registra a saída de erro
                 elif final_status == "Error":
-                    content = f"Program ID: {id}.\nProgram Name: {name}.\nFinish Hour: {datetime.now().strftime('%d/%m/%Y - %H:%M:%S')}.\nProgram Type: {type_program}.\nProgram Path: {path}.\nType Run: {type_run}.\nOutput: {final_status}\n{self.safe_decode(stderr)}\n"
+                    content = f"-------------------------------------------------------------------------------------------------------------------\nProgram ID: {id}.\nProgram Name: {name}.\nFinish Hour: {datetime.now().strftime('%d/%m/%Y - %H:%M:%S')}.\nProgram Type: {type_program}.\nProgram Path: {path}.\nType Run: {type_run}.\nOutput: {final_status}\n{self.safe_decode(stderr)}.\n-------------------------------------------------------------------------------------------------------------------\n"
                     self.manipulador.write_txt(self.manipulador.executed_txt, content)
 
             # Limpa a pasta master_files após a execução
@@ -165,7 +188,7 @@ class Runner:
             # Atualiza o status para "Canceled" e registra a saída
             self.update_execute_list(id, "Error Run")
             
-            content = f"Program ID: {id}.\nProgram Name: {name}.\nFinish Hour: {datetime.now().strftime('%d/%m/%Y - %H:%M:%S')}.\nProgram Type: {type_program}.\nProgram Path: {path}.\nType Run: {type_run}.\nOutput: Canceled by Error Run Process."
+            content = f"-------------------------------------------------------------------------------------------------------------------\nProgram ID: {id}.\nProgram Name: {name}.\nFinish Hour: {datetime.now().strftime('%d/%m/%Y - %H:%M:%S')}.\nProgram Type: {type_program}.\nProgram Path: {path}.\nType Run: {type_run}.\nOutput: Canceled by Error Run Process.\n-------------------------------------------------------------------------------------------------------------------\n"
             self.manipulador.write_txt(self.manipulador.executed_txt, content)
             
             # Limpa a pasta master_files após o cancelamento
