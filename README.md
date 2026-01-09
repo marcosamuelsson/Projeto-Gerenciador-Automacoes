@@ -212,7 +212,7 @@ Este projeto é de propriedade pessoal de Marco Antônio Samuelsson. Qualquer us
 ## Suporte e Contato
 
 Para suporte técnico ou dúvidas:
-- **Email:** [seu-email@exemplo.com]
+- **Email:** marcosamuelsson@gmail.com
 - **GitHub Issues:** Utilize a seção de issues do repositório
 
 ---
