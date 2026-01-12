@@ -27,13 +27,13 @@ class Hash:
 #   Inicializa a classe e gera uma chave criptográfica segura a partir de uma senha base.
 #   Passos:
 #       Define um salt fixo (sequência de bytes) para garantir consistência na geração da chave.
-#        Usa PBKDF2HMAC para derivar uma chave segura a partir da senha base "Schneider".
+#        Usa PBKDF2HMAC para derivar uma chave segura a partir da senha base "Hash_Selecionado".
 #        Codifica essa chave em Base64 para torná-la compatível com o Fernet.
 #        Cria um objeto Fernet com essa chave, que será usado para criptografar e descriptografar senhas.
 #   Parâmetros:
 #       base_password_key: chave para gerar a criptografia
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-    def __init__(self, base_password_key="Schneider"):
+    def __init__(self, base_password_key="Hash_Selecionado"):
         # Deriva uma chave segura a partir da senha base
         salt = b'\x00' * 16  # Salt fixo para consistência
         kdf = PBKDF2HMAC(
@@ -81,4 +81,5 @@ class Hash:
 
             return self.fernet.decrypt(password_stored).decode()
         except Exception as e:
+
             return None
