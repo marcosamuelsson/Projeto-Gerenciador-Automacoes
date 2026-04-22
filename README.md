@@ -215,6 +215,4 @@ Para suporte técnico ou dúvidas:
 - **Email:** marcosamuelsson@gmail.com
 - **GitHub Issues:** Utilize a seção de issues do repositório
 
----
-
-**Nota:** Este README foi gerado automaticamente baseado na análise completa do código fonte. Para atualizações, consulte o código diretamente ou entre em contato com o autor.
+--
